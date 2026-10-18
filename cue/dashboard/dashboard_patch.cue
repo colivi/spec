@@ -45,3 +45,17 @@ import (
 	timezone?:        string                         @go(Timezone)
 	links?: [...#Link] @go(Links,[]Link)
 }
+
+// A link is either a URL or a same-project tag menu. The two targets are
+// mutually exclusive. A tag menu needs a name, which is its title, and at
+// least one non-empty tag. Tags are matched with AND.
+#Link: {
+	{
+		url: !~#"^\s*$"#
+		tags?: []
+	} | {
+		name: !~#"^\s*$"#
+		url?: ""
+		tags: [...!~#"^\s*$"#] & [_, ...]
+	}
+}

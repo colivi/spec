@@ -16,12 +16,15 @@ package dev.perses.spec.dashboard.panel;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Link {
     @JsonProperty("name")
     public String name;
 
-    @JsonProperty(value = "url", required = true)
+    // Exactly one of url or tags is set. url stays optional so a tag menu can omit it.
+    @JsonProperty("url")
     public String url;
 
     @JsonProperty("tooltip")
@@ -32,6 +35,15 @@ public class Link {
 
     @JsonProperty("targetBlank")
     public Boolean targetBlank;
+
+    @JsonProperty("tags")
+    public List<String> tags;
+
+    @JsonProperty("keepTime")
+    public Boolean keepTime;
+
+    @JsonProperty("includeVariables")
+    public Boolean includeVariables;
 
     public Link() {
     }

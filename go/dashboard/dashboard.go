@@ -23,12 +23,20 @@ import (
 	"github.com/perses/spec/go/plugin"
 )
 
+// Link is either a URL or a menu of dashboards in the current project.
+// Exactly one of URL or Tags is set. Tags match with AND: a dashboard is
+// listed when it carries every tag. KeepTime and IncludeVariables apply to a
+// tag menu and are independent of RenderVariables, which only interpolates
+// $var inside a URL.
 type Link struct {
-	Name            string `json:"name,omitempty" yaml:"name,omitempty"`
-	URL             string `json:"url" yaml:"url"`
-	Tooltip         string `json:"tooltip,omitempty" yaml:"tooltip,omitempty"`
-	RenderVariables bool   `json:"renderVariables,omitempty" yaml:"renderVariables,omitempty"`
-	TargetBlank     bool   `json:"targetBlank,omitempty" yaml:"targetBlank,omitempty"`
+	Name             string   `json:"name,omitempty" yaml:"name,omitempty"`
+	URL              string   `json:"url,omitempty" yaml:"url,omitempty"`
+	Tooltip          string   `json:"tooltip,omitempty" yaml:"tooltip,omitempty"`
+	RenderVariables  bool     `json:"renderVariables,omitempty" yaml:"renderVariables,omitempty"`
+	TargetBlank      bool     `json:"targetBlank,omitempty" yaml:"targetBlank,omitempty"`
+	Tags             []string `json:"tags,omitempty" yaml:"tags,omitempty"`
+	KeepTime         bool     `json:"keepTime,omitempty" yaml:"keepTime,omitempty"`
+	IncludeVariables bool     `json:"includeVariables,omitempty" yaml:"includeVariables,omitempty"`
 }
 
 type PanelDisplay struct {
@@ -134,6 +142,9 @@ func (d *Spec) validate() error {
 		d.Duration = "1h"
 	}
 	if err := validateTimezone(d.Timezone); err != nil {
+		return err
+	}
+	if err := d.validateLinks(); err != nil {
 		return err
 	}
 	return nil

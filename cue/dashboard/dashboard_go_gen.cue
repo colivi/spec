@@ -6,12 +6,20 @@ package dashboard
 
 import plugin_9 "github.com/perses/spec/cue/plugin"
 
+// Link is either a URL or a menu of dashboards in the current project.
+// Exactly one of URL or Tags is set. Tags match with AND: a dashboard is
+// listed when it carries every tag. KeepTime and IncludeVariables apply to a
+// tag menu and are independent of RenderVariables, which only interpolates
+// $var inside a URL.
 #Link: {
 	name?:            string @go(Name)
-	url:              string @go(URL)
+	url?:             string @go(URL)
 	tooltip?:         string @go(Tooltip)
 	renderVariables?: bool   @go(RenderVariables)
 	targetBlank?:     bool   @go(TargetBlank)
+	tags?: [...string] @go(Tags,[]string)
+	keepTime?:         bool @go(KeepTime)
+	includeVariables?: bool @go(IncludeVariables)
 }
 
 #PanelDisplay: {

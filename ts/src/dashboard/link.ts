@@ -13,8 +13,19 @@
 
 export interface Link {
   name?: string;
-  url: string;
+  /** Set for a URL link. Mutually exclusive with tags. */
+  url?: string;
   tooltip?: string;
+  /** Interpolate $var inside url. Independent of includeVariables. */
   renderVariables?: boolean;
   targetBlank?: boolean;
+  /**
+   * When set, the link is a menu of dashboards in the current project that
+   * carry every tag. Mutually exclusive with url. A tag link requires name.
+   */
+  tags?: string[];
+  /** Forward the current time range when opening a dashboard from a tag menu. */
+  keepTime?: boolean;
+  /** Forward variables whose names exist on the destination dashboard. */
+  includeVariables?: boolean;
 }
