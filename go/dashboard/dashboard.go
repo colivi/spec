@@ -23,11 +23,7 @@ import (
 	"github.com/perses/spec/go/plugin"
 )
 
-// Link is either a URL or a menu of dashboards in the current project.
-// Exactly one of URL or Tags is set. Tags match with AND: a dashboard is
-// listed when it carries every tag. KeepTime and IncludeVariables apply to a
-// tag menu and are independent of RenderVariables, which only interpolates
-// $var inside a URL.
+// Link is a URL or a same-project tag menu. Exactly one of URL or Tags is set.
 type Link struct {
 	Name             string   `json:"name,omitempty" yaml:"name,omitempty"`
 	URL              string   `json:"url,omitempty" yaml:"url,omitempty"`

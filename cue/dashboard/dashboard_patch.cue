@@ -46,9 +46,7 @@ import (
 	links?: [...#Link] @go(Links,[]Link)
 }
 
-// A link is either a URL or a same-project tag menu. The two targets are
-// mutually exclusive. A tag menu needs a name, which is its title, and at
-// least one non-empty tag. Tags are matched with AND.
+// URL xor tags. A tag menu needs a name and one non-empty tag.
 #Link: {
 	{
 		url: !~#"^\s*$"#

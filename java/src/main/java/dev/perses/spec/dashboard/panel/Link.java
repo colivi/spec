@@ -23,7 +23,6 @@ public class Link {
     @JsonProperty("name")
     public String name;
 
-    // Exactly one of url or tags is set. url stays optional so a tag menu can omit it.
     @JsonProperty("url")
     public String url;
 

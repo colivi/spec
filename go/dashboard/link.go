@@ -37,10 +37,7 @@ func (d *Spec) validateLinks() error {
 	return nil
 }
 
-// normalizeLink trims the URL and tags, then requires exactly one of a URL or
-// at least one tag. A tag link also needs a name, which is the menu title.
-// Validation lives here rather than in UnmarshalJSON so cue get go keeps a
-// structured #Link definition.
+// Kept off UnmarshalJSON so cue get go does not collapse #Link to any.
 func normalizeLink(link *Link, where string) error {
 	link.URL = strings.TrimSpace(link.URL)
 	link.Name = strings.TrimSpace(link.Name)
