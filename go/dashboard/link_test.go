@@ -22,88 +22,88 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func dashboardWithLinks(links string) string {
-	return `{
-	  "duration": "1h",
-	  "panels": {},
-	  "layouts": [],
-	  "links": ` + links + `
-	}`
+func TestUnmarshalLink(t *testing.T) {
+	tests := []struct {
+		name    string
+		json    string
+		yaml    string
+		want    Link
+		wantErr string
+	}{
+		{
+			name: "url",
+			json: `{"name":" Docs ","url":" https://perses.dev ","tooltip":"docs","renderVariables":true,"targetBlank":true}`,
+			yaml: "{name: ' Docs ', url: ' https://perses.dev ', tooltip: docs, renderVariables: true, targetBlank: true}",
+			want: Link{Name: "Docs", URL: "https://perses.dev", Tooltip: "docs", RenderVariables: true, TargetBlank: true},
+		},
+		{
+			name: "tags",
+			json: `{"name":" Service detail ","url":"   ","tags":[" traffic ","billing"],"keepTime":true,"includeVariables":true}`,
+			yaml: "{name: ' Service detail ', url: '   ', tags: [' traffic ', billing], keepTime: true, includeVariables: true}",
+			want: Link{Name: "Service detail", Tags: []string{"traffic", "billing"}, KeepTime: true, IncludeVariables: true},
+		},
+		{
+			name:    "neither",
+			json:    `{"name":"Docs"}`,
+			yaml:    "{name: Docs}",
+			wantErr: "link must set a url or at least one tag",
+		},
+		{
+			name:    "blank url",
+			json:    `{"url":"   "}`,
+			yaml:    "{url: '   '}",
+			wantErr: "link must set a url or at least one tag",
+		},
+		{
+			name:    "both",
+			json:    `{"name":"Docs","url":" https://perses.dev ","tags":["traffic"]}`,
+			yaml:    "{name: Docs, url: ' https://perses.dev ', tags: [traffic]}",
+			wantErr: "link must set either a url or tags, not both",
+		},
+		{
+			name:    "empty tag",
+			json:    `{"name":"Docs","tags":["traffic"," "]}`,
+			yaml:    "{name: Docs, tags: [traffic, ' ']}",
+			wantErr: "link tag must not be empty",
+		},
+		{
+			name:    "tag without name",
+			json:    `{"name":"  ","tags":["traffic"]}`,
+			yaml:    "{name: '  ', tags: [traffic]}",
+			wantErr: "a tag link must set a name",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, format := range []struct {
+				name string
+				raw  string
+				call func([]byte, any) error
+			}{
+				{"json", tt.json, json.Unmarshal},
+				{"yaml", tt.yaml, yaml.Unmarshal},
+			} {
+				t.Run(format.name, func(t *testing.T) {
+					var link Link
+					err := format.call([]byte(format.raw), &link)
+					if tt.wantErr != "" {
+						require.ErrorContains(t, err, tt.wantErr)
+						return
+					}
+					require.NoError(t, err)
+					assert.Equal(t, tt.want, link)
+					if len(link.Tags) > 0 {
+						data, err := json.Marshal(link)
+						require.NoError(t, err)
+						assert.NotContains(t, string(data), `"url"`)
+					}
+				})
+			}
+		})
+	}
 }
 
-func TestUnmarshalURLLink(t *testing.T) {
-	var spec Spec
-	err := json.Unmarshal([]byte(dashboardWithLinks(`[{"name":"Docs","url":"https://perses.dev","renderVariables":true}]`)), &spec)
-	require.NoError(t, err)
-	require.Len(t, spec.Links, 1)
-	assert.Equal(t, "Docs", spec.Links[0].Name)
-	assert.Equal(t, "https://perses.dev", spec.Links[0].URL)
-	assert.True(t, spec.Links[0].RenderVariables)
-	assert.Empty(t, spec.Links[0].Tags)
-}
-
-func TestUnmarshalTagLinkTrimsTags(t *testing.T) {
-	var spec Spec
-	raw := dashboardWithLinks(`[{"name":" Service detail ","tags":[" traffic ","billing"],"keepTime":true,"includeVariables":true}]`)
-	require.NoError(t, json.Unmarshal([]byte(raw), &spec))
-	require.Len(t, spec.Links, 1)
-	assert.Equal(t, "Service detail", spec.Links[0].Name)
-	assert.Equal(t, []string{"traffic", "billing"}, spec.Links[0].Tags)
-	assert.True(t, spec.Links[0].KeepTime)
-	assert.True(t, spec.Links[0].IncludeVariables)
-	assert.Empty(t, spec.Links[0].URL)
-
-	data, err := json.Marshal(spec.Links[0])
-	require.NoError(t, err)
-	assert.NotContains(t, string(data), `"url"`)
-}
-
-func TestUnmarshalTagLinkYAML(t *testing.T) {
-	const raw = `
-duration: 1h
-panels: {}
-layouts: []
-links:
-  - name: Service detail
-    tags: [traffic]
-    keepTime: true
-`
-	var spec Spec
-	require.NoError(t, yaml.Unmarshal([]byte(raw), &spec))
-	require.Len(t, spec.Links, 1)
-	assert.Equal(t, []string{"traffic"}, spec.Links[0].Tags)
-	assert.True(t, spec.Links[0].KeepTime)
-}
-
-func TestUnmarshalRejectsLinkWithNeitherTarget(t *testing.T) {
-	var spec Spec
-	err := json.Unmarshal([]byte(dashboardWithLinks(`[{"name":"Docs"}]`)), &spec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "links[0]: link must set a url or at least one tag")
-}
-
-func TestUnmarshalRejectsLinkWithBothTargets(t *testing.T) {
-	var spec Spec
-	err := json.Unmarshal([]byte(dashboardWithLinks(`[{"name":"Docs","url":"https://perses.dev","tags":["traffic"]}]`)), &spec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "links[0]: link must set either a url or tags, not both")
-}
-
-func TestUnmarshalRejectsEmptyTag(t *testing.T) {
-	var spec Spec
-	err := json.Unmarshal([]byte(dashboardWithLinks(`[{"name":"Docs","tags":["traffic"," "]}]`)), &spec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "links[0]: link tag must not be empty")
-}
-
-func TestUnmarshalRejectsTagLinkWithoutName(t *testing.T) {
-	var spec Spec
-	err := json.Unmarshal([]byte(dashboardWithLinks(`[{"tags":["traffic"]}]`)), &spec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "links[0]: a tag link must set a name")
-}
-
-func TestUnmarshalRejectsPanelTagLinkWithoutName(t *testing.T) {
+func TestUnmarshalPanelLink(t *testing.T) {
 	const raw = `{
 	  "duration": "1h",
 	  "layouts": [],
@@ -112,13 +112,19 @@ func TestUnmarshalRejectsPanelTagLinkWithoutName(t *testing.T) {
 	      "kind": "Panel",
 	      "spec": {
 	        "plugin": {"kind": "TimeSeriesChart", "spec": {}},
-	        "links": [{"tags": ["traffic"]}]
+	        "links": [{"name":" Detail ","url":"  ","tags":[" traffic "],"keepTime":true}]
 	      }
 	    }
 	  }
 	}`
 	var spec Spec
-	err := json.Unmarshal([]byte(raw), &spec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), `panels[cpu].spec.links[0]: a tag link must set a name`)
+	require.NoError(t, json.Unmarshal([]byte(raw), &spec))
+	assert.Equal(t, Link{Name: "Detail", Tags: []string{"traffic"}, KeepTime: true}, spec.Panels["cpu"].Spec.Links[0])
+
+	err := json.Unmarshal([]byte(`{
+	  "duration": "1h",
+	  "layouts": [],
+	  "panels": {"cpu": {"kind": "Panel", "spec": {"plugin": {"kind": "TimeSeriesChart", "spec": {}}, "links": [{"tags": ["traffic"]}]}}}
+	}`), &spec)
+	require.ErrorContains(t, err, "a tag link must set a name")
 }

@@ -14,58 +14,73 @@
 package dashboard
 
 import (
-	"fmt"
+	"encoding/json"
+	"errors"
 	"strings"
 )
 
-func (d *Spec) validateLinks() error {
-	for i := range d.Links {
-		if err := normalizeLink(&d.Links[i], fmt.Sprintf("links[%d]", i)); err != nil {
-			return err
-		}
+// Link is a URL or a same-project tag menu. Exactly one of URL or Tags is set.
+type Link struct {
+	Name             string   `json:"name,omitempty" yaml:"name,omitempty"`
+	URL              string   `json:"url,omitempty" yaml:"url,omitempty"`
+	Tooltip          string   `json:"tooltip,omitempty" yaml:"tooltip,omitempty"`
+	RenderVariables  bool     `json:"renderVariables,omitempty" yaml:"renderVariables,omitempty"`
+	TargetBlank      bool     `json:"targetBlank,omitempty" yaml:"targetBlank,omitempty"`
+	Tags             []string `json:"tags,omitempty" yaml:"tags,omitempty"`
+	KeepTime         bool     `json:"keepTime,omitempty" yaml:"keepTime,omitempty"`
+	IncludeVariables bool     `json:"includeVariables,omitempty" yaml:"includeVariables,omitempty"`
+}
+
+func (l *Link) UnmarshalJSON(data []byte) error {
+	var tmp Link
+	type plain Link
+	if err := json.Unmarshal(data, (*plain)(&tmp)); err != nil {
+		return err
 	}
-	for key, panel := range d.Panels {
-		if panel == nil {
-			continue
-		}
-		for i := range panel.Spec.Links {
-			if err := normalizeLink(&panel.Spec.Links[i], fmt.Sprintf("panels[%s].spec.links[%d]", key, i)); err != nil {
-				return err
-			}
-		}
+	if err := (&tmp).validate(); err != nil {
+		return err
 	}
+	*l = tmp
 	return nil
 }
 
-// Kept off UnmarshalJSON so cue get go does not collapse #Link to any.
-func normalizeLink(link *Link, where string) error {
-	link.URL = strings.TrimSpace(link.URL)
-	link.Name = strings.TrimSpace(link.Name)
+func (l *Link) UnmarshalYAML(unmarshal func(any) error) error {
+	var tmp Link
+	type plain Link
+	if err := unmarshal((*plain)(&tmp)); err != nil {
+		return err
+	}
+	if err := (&tmp).validate(); err != nil {
+		return err
+	}
+	*l = tmp
+	return nil
+}
 
-	trimmed := make([]string, 0, len(link.Tags))
-	for _, tag := range link.Tags {
+func (l *Link) validate() error {
+	l.URL = strings.TrimSpace(l.URL)
+	l.Name = strings.TrimSpace(l.Name)
+
+	var tags []string
+	for _, tag := range l.Tags {
 		tag = strings.TrimSpace(tag)
 		if tag == "" {
-			return fmt.Errorf("%s: link tag must not be empty", where)
+			return errors.New("link tag must not be empty")
 		}
-		trimmed = append(trimmed, tag)
+		tags = append(tags, tag)
 	}
-	if len(trimmed) == 0 {
-		link.Tags = nil
-	} else {
-		link.Tags = trimmed
-	}
+	l.Tags = tags
 
-	hasURL := link.URL != ""
-	hasTags := len(link.Tags) > 0
+	hasURL := l.URL != ""
+	hasTags := len(l.Tags) > 0
 	if hasURL == hasTags {
 		if hasURL {
-			return fmt.Errorf("%s: link must set either a url or tags, not both", where)
+			return errors.New("link must set either a url or tags, not both")
 		}
-		return fmt.Errorf("%s: link must set a url or at least one tag", where)
+		return errors.New("link must set a url or at least one tag")
 	}
-	if hasTags && link.Name == "" {
-		return fmt.Errorf("%s: a tag link must set a name", where)
+	if hasTags && l.Name == "" {
+		return errors.New("a tag link must set a name")
 	}
 	return nil
 }

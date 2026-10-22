@@ -44,21 +44,34 @@ export const linkSchema: z.ZodType<Link, Link> = z
   })
   .superRefine((link, ctx) => {
     const url = link.url?.trim() ?? '';
+    const name = link.name?.trim() ?? '';
     const tags = (link.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
     const rawTagCount = link.tags?.length ?? 0;
+    let valid = true;
+    const reject = (message: string): void => {
+      valid = false;
+      ctx.addIssue({ code: 'custom', message });
+    };
     if (rawTagCount > 0 && tags.length !== rawTagCount) {
-      ctx.addIssue({ code: 'custom', message: 'link tag must not be empty' });
+      reject('link tag must not be empty');
     }
     if (url.length > 0 === tags.length > 0) {
-      ctx.addIssue({
-        code: 'custom',
-        message:
-          url.length > 0 ? 'link must set either a url or tags, not both' : 'link must set a url or at least one tag',
-      });
+      reject(
+        url.length > 0 ? 'link must set either a url or tags, not both' : 'link must set a url or at least one tag',
+      );
     }
-    if (tags.length > 0 && !(link.name && link.name.trim().length > 0)) {
-      ctx.addIssue({ code: 'custom', message: 'a tag link must set a name' });
+    if (tags.length > 0 && name.length === 0) {
+      reject('a tag link must set a name');
     }
+    if (!valid) {
+      return;
+    }
+    if (name) link.name = name;
+    else delete link.name;
+    if (url) link.url = url;
+    else delete link.url;
+    if (tags.length > 0) link.tags = tags;
+    else delete link.tags;
   });
 
 export const panelSpecSchema: z.ZodType<PanelSpec, PanelSpec> = z.object({

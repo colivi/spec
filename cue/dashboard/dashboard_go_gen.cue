@@ -6,18 +6,6 @@ package dashboard
 
 import plugin_9 "github.com/perses/spec/cue/plugin"
 
-// Link is a URL or a same-project tag menu. Exactly one of URL or Tags is set.
-#Link: {
-	name?:            string @go(Name)
-	url?:             string @go(URL)
-	tooltip?:         string @go(Tooltip)
-	renderVariables?: bool   @go(RenderVariables)
-	targetBlank?:     bool   @go(TargetBlank)
-	tags?: [...string] @go(Tags,[]string)
-	keepTime?:         bool @go(KeepTime)
-	includeVariables?: bool @go(IncludeVariables)
-}
-
 #PanelDisplay: {
 	name?:        string @go(Name)
 	description?: string @go(Description)
