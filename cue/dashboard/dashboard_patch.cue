@@ -22,6 +22,8 @@
 package dashboard
 
 import (
+	"list"
+
 	"github.com/perses/spec/cue/common"
 	"github.com/perses/spec/cue/datasource"
 )
@@ -58,11 +60,9 @@ import (
 	{
 		url: !~#"^\s*$"#
 		tags?: []
-		...
 	} | {
 		name: !~#"^\s*$"#
 		url?: =~#"^\s*$"#
-		tags: [...!~#"^\s*$"#] & [_, ...]
-		...
+		tags: [...!~#"^\s*$"#] & list.MinItems(1)
 	}
 }
