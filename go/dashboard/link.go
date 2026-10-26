@@ -16,13 +16,18 @@ package dashboard
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"unicode/utf8"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Link is a URL or a same-project tag menu.
 // An empty URL with no tags is still valid: dashboards stored before tag links used that placeholder.
 // When Tags is set, URL must be empty, every tag must be non-empty, and Name is required.
-// KeepTime and IncludeVariables apply to both. RenderVariables only interpolates $var inside a URL.
+// KeepTime, IncludeVariables and TargetBlank apply to both.
+// RenderVariables only interpolates $var inside a URL, so a tag menu cannot set it.
 type Link struct {
 	Name             string   `json:"name,omitempty" yaml:"name,omitempty"`
 	URL              string   `json:"url,omitempty" yaml:"url,omitempty"`
@@ -74,22 +79,53 @@ func (l Link) MarshalJSON() ([]byte, error) {
 	return json.Marshal(payload)
 }
 
+// MarshalYAML matches MarshalJSON. On main, yaml:"url" kept an empty URL.
+func (l Link) MarshalYAML() (any, error) {
+	type plain Link
+	var node yaml.Node
+	if err := node.Encode(plain(l)); err != nil {
+		return nil, err
+	}
+	if l.URL == "" && len(l.Tags) == 0 {
+		if node.Kind != yaml.MappingNode {
+			node = yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		}
+		node.Content = append(node.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: "url"},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: ""},
+		)
+	}
+	return &node, nil
+}
+
 func (l *Link) validate() error {
 	l.URL = strings.TrimSpace(l.URL)
 	l.Name = strings.TrimSpace(l.Name)
 
+	// Same ceilings as perses Metadata.validateTags. A longer tag or a longer list can never match a dashboard.
+	const maxTags = 20
+	const maxTagRunes = 50
 	var tags []string
 	for _, tag := range l.Tags {
 		tag = strings.TrimSpace(tag)
 		if tag == "" {
 			return errors.New("link tag must not be empty")
 		}
+		if utf8.RuneCountInString(tag) > maxTagRunes {
+			return fmt.Errorf("tag %q cannot contain more than %d characters", tag, maxTagRunes)
+		}
 		tags = append(tags, tag)
+	}
+	if len(tags) > maxTags {
+		return fmt.Errorf("cannot contain more than %d tags", maxTags)
 	}
 	l.Tags = tags
 
 	if l.URL != "" && len(l.Tags) > 0 {
 		return errors.New("link must set either a url or tags, not both")
+	}
+	if len(l.Tags) > 0 && l.RenderVariables {
+		return errors.New("renderVariables is only valid on a URL link")
 	}
 	if len(l.Tags) > 0 && l.Name == "" {
 		return errors.New("a tag link must set a name")

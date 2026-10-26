@@ -68,12 +68,29 @@ describe('linkSchema', () => {
     const parsed = linkSchema.parse(input);
     expect(parsed).toEqual(output);
     expect(parsed).not.toHaveProperty('tags');
+    expect(Object.values(parsed).every((value) => value !== undefined)).toBe(true);
+  });
+
+  it('omits undefined keys', () => {
+    expect(Object.keys(linkSchema.parse({ url: 'https://perses.dev' }))).toEqual(['url']);
+    expect(Object.keys(linkSchema.parse({ name: 'Traffic', tags: ['traffic'], targetBlank: true })).sort()).toEqual([
+      'name',
+      'tags',
+      'targetBlank',
+    ]);
   });
 
   it.each([
     [{ name: 'Docs', url: ' https://perses.dev ', tags: ['traffic'] }, 'link must set either a url or tags, not both'],
     [{ name: 'Docs', tags: ['traffic', ' '] }, 'link tag must not be empty'],
     [{ name: '  ', tags: ['traffic'] }, 'a tag link must set a name'],
+    [{ name: 'Traffic', tags: ['traffic'], renderVariables: true }, 'renderVariables is only valid on a URL link'],
+    [
+      { name: 'Traffic', tags: Array.from({ length: 21 }, (_, i) => String(i + 1)) },
+      'cannot contain more than 20 tags',
+    ],
+    [{ name: 'Traffic', tags: ['a'.repeat(51)] }, 'cannot contain more than 50 characters'],
+    [{ name: 'Traffic', tags: ['é'.repeat(51)] }, 'cannot contain more than 50 characters'],
   ])('rejects %j', (input, message) => {
     expect(() => linkSchema.parse(input)).toThrow(message);
   });

@@ -33,7 +33,11 @@ export interface URLLink extends LinkBase {
 export interface TagLink extends LinkBase {
   name: string;
   tags: string[];
+  /** Open the chosen dashboard in a new tab. */
+  targetBlank?: boolean;
   url?: never;
+  /** Tag menus have no URL to interpolate. */
+  renderVariables?: never;
 }
 
 export type Link = URLLink | TagLink;

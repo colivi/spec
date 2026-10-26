@@ -7,5 +7,6 @@ package dashboard
 // Link is a URL or a same-project tag menu.
 // An empty URL with no tags is still valid: dashboards stored before tag links used that placeholder.
 // When Tags is set, URL must be empty, every tag must be non-empty, and Name is required.
-// KeepTime and IncludeVariables apply to both. RenderVariables only interpolates $var inside a URL.
+// KeepTime, IncludeVariables and TargetBlank apply to both.
+// RenderVariables only interpolates $var inside a URL, so a tag menu cannot set it.
 #Link: _

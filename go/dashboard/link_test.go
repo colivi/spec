@@ -78,6 +78,30 @@ func TestUnmarshalLink(t *testing.T) {
 			yaml:    "{name: '  ', tags: [traffic]}",
 			wantErr: "a tag link must set a name",
 		},
+		{
+			name: "tag target blank",
+			json: `{"name":"Traffic","tags":["traffic"],"targetBlank":true}`,
+			yaml: "{name: Traffic, tags: [traffic], targetBlank: true}",
+			want: Link{Name: "Traffic", Tags: []string{"traffic"}, TargetBlank: true},
+		},
+		{
+			name:    "too many tags",
+			json:    `{"name":"Traffic","tags":["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21"]}`,
+			yaml:    "{name: Traffic, tags: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21']}",
+			wantErr: "cannot contain more than 20 tags",
+		},
+		{
+			name:    "tag too long",
+			json:    `{"name":"Traffic","tags":["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]}`,
+			yaml:    "{name: Traffic, tags: ['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']}",
+			wantErr: "cannot contain more than 50 characters",
+		},
+		{
+			name:    "tag render variables",
+			json:    `{"name":"Traffic","tags":["traffic"],"renderVariables":true}`,
+			yaml:    "{name: Traffic, tags: [traffic], renderVariables: true}",
+			wantErr: "renderVariables is only valid on a URL link",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -100,11 +124,15 @@ func TestUnmarshalLink(t *testing.T) {
 					assert.Equal(t, tt.want, link)
 					data, err := json.Marshal(link)
 					require.NoError(t, err)
+					yamlData, err := yaml.Marshal(link)
+					require.NoError(t, err)
 					if len(link.Tags) > 0 {
 						assert.NotContains(t, string(data), `"url"`)
+						assert.NotContains(t, string(yamlData), "url:")
 						return
 					}
 					assert.Contains(t, string(data), `"url"`)
+					assert.Contains(t, string(yamlData), "url:")
 				})
 			}
 		})

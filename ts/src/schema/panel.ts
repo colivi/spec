@@ -51,8 +51,22 @@ export const linkSchema: z.ZodType<Link, z.input<typeof linkInputSchema>> = link
     if (rawTagCount > 0 && tags.length !== rawTagCount) {
       ctx.addIssue({ code: 'custom', message: 'link tag must not be empty' });
     }
+    // Same ceilings as perses Metadata.validateTags. [...tag] counts Unicode code points, like utf8.RuneCountInString.
+    const maxTags = 20;
+    const maxTagRunes = 50;
+    for (const tag of tags) {
+      if ([...tag].length > maxTagRunes) {
+        ctx.addIssue({ code: 'custom', message: `tag ${JSON.stringify(tag)} cannot contain more than ${maxTagRunes} characters` });
+      }
+    }
+    if (tags.length > maxTags) {
+      ctx.addIssue({ code: 'custom', message: `cannot contain more than ${maxTags} tags` });
+    }
     if (url.length > 0 && tags.length > 0) {
       ctx.addIssue({ code: 'custom', message: 'link must set either a url or tags, not both' });
+    }
+    if (tags.length > 0 && link.renderVariables === true) {
+      ctx.addIssue({ code: 'custom', message: 'renderVariables is only valid on a URL link' });
     }
     if (tags.length > 0 && name.length === 0) {
       ctx.addIssue({ code: 'custom', message: 'a tag link must set a name' });
@@ -62,22 +76,23 @@ export const linkSchema: z.ZodType<Link, z.input<typeof linkInputSchema>> = link
     const url = link.url?.trim() ?? '';
     const name = link.name?.trim() || undefined;
     const tags = (link.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
-    const shared = {
+    const shared = definedFields({
       tooltip: link.tooltip,
       keepTime: link.keepTime,
       includeVariables: link.includeVariables,
-    };
+      targetBlank: link.targetBlank,
+    });
     if (tags.length > 0) {
       return { ...shared, name: name ?? '', tags };
     }
-    return {
-      ...shared,
-      name,
-      url,
-      renderVariables: link.renderVariables,
-      targetBlank: link.targetBlank,
-    };
+    return { ...shared, ...definedFields({ name, renderVariables: link.renderVariables }), url };
   });
+
+function definedFields<T extends Record<string, unknown>>(fields: T): { [K in keyof T]?: T[K] } {
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as {
+    [K in keyof T]?: T[K];
+  };
+}
 
 // Input stays the loose JSON object. Output is the URLLink | TagLink union.
 export const panelSpecSchema: z.ZodType<PanelSpec> = z.object({

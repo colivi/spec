@@ -21,22 +21,34 @@
 
 package dashboard
 
+import "list"
+import "strings"
+
 // Same characters as Go's unicode.IsSpace. RE2 \s is ASCII only.
 #blank: #"^[\t\n\v\f\r\x{85}\p{Z}]*$"#
 
+// Same ceilings as perses Metadata.validateTags.
+#maxTags:     20
+#maxTagRunes: 50
+
 #Link: {
-	name?: string @go(Name)
-	// Defaults make a missing URL or tag list concrete. An empty URL is the placeholder stored before tag links.
-	url: *"" | string @go(URL)
+	name?:            string @go(Name)
+	url?:             string @go(URL)
 	tooltip?:         string @go(Tooltip)
 	renderVariables?: bool   @go(RenderVariables)
 	targetBlank?:     bool   @go(TargetBlank)
-	tags: *[] | [...!~#blank] @go(Tags,[]string)
+	tags?: null | ([...!~#blank] & list.MaxItems(#maxTags)) @go(Tags,[]string)
 	// Both kinds. A URL copies every current variable. A tag menu copies variables the destination declares.
 	keepTime?:         bool @go(KeepTime)
 	includeVariables?: bool @go(IncludeVariables)
-	if len(tags) > 0 {
+	if tags != _|_ if tags != null if len(tags) > 0 {
+		// strings.Count(s, "") is one more than the number of Unicode code points.
+		_tooLong: [ for tag in tags if strings.Count(tag, "")-1 > #maxTagRunes {tag}] & []
 		name: !~#blank
-		url:  =~#blank
+		// A tag menu has no URL. renderVariables only interpolates $var inside a URL.
+		url?: =~#blank
+		if renderVariables != _|_ if renderVariables == true {
+			renderVariables: _|_
+		}
 	}
 }
