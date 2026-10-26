@@ -43,16 +43,22 @@ func TestUnmarshalLink(t *testing.T) {
 			want: Link{Name: "Service detail", Tags: []string{"traffic", "billing"}, KeepTime: true, IncludeVariables: true},
 		},
 		{
-			name:    "neither",
-			json:    `{"name":"Docs"}`,
-			yaml:    "{name: Docs}",
-			wantErr: "link must set a url or at least one tag",
+			name: "neither",
+			json: `{"name":"Docs"}`,
+			yaml: "{name: Docs}",
+			want: Link{Name: "Docs"},
 		},
 		{
-			name:    "blank url",
-			json:    `{"url":"   "}`,
-			yaml:    "{url: '   '}",
-			wantErr: "link must set a url or at least one tag",
+			name: "blank url",
+			json: `{"name":"todo","url":""}`,
+			yaml: "{name: todo, url: ''}",
+			want: Link{Name: "todo"},
+		},
+		{
+			name: "whitespace url",
+			json: `{"url":"   "}`,
+			yaml: "{url: '   '}",
+			want: Link{},
 		},
 		{
 			name:    "both",
@@ -92,11 +98,13 @@ func TestUnmarshalLink(t *testing.T) {
 					}
 					require.NoError(t, err)
 					assert.Equal(t, tt.want, link)
+					data, err := json.Marshal(link)
+					require.NoError(t, err)
 					if len(link.Tags) > 0 {
-						data, err := json.Marshal(link)
-						require.NoError(t, err)
 						assert.NotContains(t, string(data), `"url"`)
+						return
 					}
+					assert.Contains(t, string(data), `"url"`)
 				})
 			}
 		})

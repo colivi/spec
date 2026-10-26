@@ -19,7 +19,10 @@ import (
 	"strings"
 )
 
-// Link is a URL or a same-project tag menu. Exactly one of URL or Tags is set.
+// Link is a URL or a same-project tag menu.
+// An empty URL with no tags is still valid: dashboards stored before tag links used that placeholder.
+// When Tags is set, URL must be empty, every tag must be non-empty, and Name is required.
+// KeepTime and IncludeVariables apply to both. RenderVariables only interpolates $var inside a URL.
 type Link struct {
 	Name             string   `json:"name,omitempty" yaml:"name,omitempty"`
 	URL              string   `json:"url,omitempty" yaml:"url,omitempty"`
@@ -57,6 +60,20 @@ func (l *Link) UnmarshalYAML(unmarshal func(any) error) error {
 	return nil
 }
 
+// MarshalJSON keeps "url" on a URL link even when it is empty.
+// omitempty would drop it and the document would no longer say which kind of link it is.
+func (l Link) MarshalJSON() ([]byte, error) {
+	type plain Link
+	if l.URL != "" || len(l.Tags) > 0 {
+		return json.Marshal(plain(l))
+	}
+	payload := struct {
+		plain
+		URL string `json:"url"`
+	}{plain: plain(l), URL: ""}
+	return json.Marshal(payload)
+}
+
 func (l *Link) validate() error {
 	l.URL = strings.TrimSpace(l.URL)
 	l.Name = strings.TrimSpace(l.Name)
@@ -71,15 +88,10 @@ func (l *Link) validate() error {
 	}
 	l.Tags = tags
 
-	hasURL := l.URL != ""
-	hasTags := len(l.Tags) > 0
-	if hasURL == hasTags {
-		if hasURL {
-			return errors.New("link must set either a url or tags, not both")
-		}
-		return errors.New("link must set a url or at least one tag")
+	if l.URL != "" && len(l.Tags) > 0 {
+		return errors.New("link must set either a url or tags, not both")
 	}
-	if hasTags && l.Name == "" {
+	if len(l.Tags) > 0 && l.Name == "" {
 		return errors.New("a tag link must set a name")
 	}
 	return nil

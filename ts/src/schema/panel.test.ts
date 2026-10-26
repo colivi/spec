@@ -19,8 +19,24 @@ describe('linkSchema', () => {
   it.each([
     {
       name: 'url',
-      input: { name: ' Docs ', url: ' https://perses.dev ', tooltip: 'docs', renderVariables: true, targetBlank: true },
-      output: { name: 'Docs', url: 'https://perses.dev', tooltip: 'docs', renderVariables: true, targetBlank: true },
+      input: {
+        name: ' Docs ',
+        url: ' https://perses.dev ',
+        tooltip: 'docs',
+        renderVariables: true,
+        targetBlank: true,
+        keepTime: true,
+        includeVariables: true,
+      },
+      output: {
+        name: 'Docs',
+        url: 'https://perses.dev',
+        tooltip: 'docs',
+        renderVariables: true,
+        targetBlank: true,
+        keepTime: true,
+        includeVariables: true,
+      },
     },
     {
       name: 'tags',
@@ -36,12 +52,25 @@ describe('linkSchema', () => {
   ])('normalizes a $name link', ({ input, output }) => {
     const parsed = linkSchema.parse(input);
     expect(parsed).toEqual(output);
-    expect(parsed).not.toHaveProperty(output.url ? 'tags' : 'url');
+    if ('tags' in output) {
+      expect(parsed).not.toHaveProperty('url');
+      return;
+    }
+    expect(parsed).not.toHaveProperty('tags');
+    expect(parsed).toHaveProperty('url');
   });
 
   it.each([
-    [{ name: 'Docs' }, 'link must set a url or at least one tag'],
-    [{ url: '   ' }, 'link must set a url or at least one tag'],
+    { name: 'neither', input: { name: 'Docs' }, output: { name: 'Docs', url: '' } },
+    { name: 'blank url', input: { name: 'todo', url: '' }, output: { name: 'todo', url: '' } },
+    { name: 'whitespace url', input: { url: '   ' }, output: { url: '' } },
+  ])('keeps a $name placeholder', ({ input, output }) => {
+    const parsed = linkSchema.parse(input);
+    expect(parsed).toEqual(output);
+    expect(parsed).not.toHaveProperty('tags');
+  });
+
+  it.each([
     [{ name: 'Docs', url: ' https://perses.dev ', tags: ['traffic'] }, 'link must set either a url or tags, not both'],
     [{ name: 'Docs', tags: ['traffic', ' '] }, 'link tag must not be empty'],
     [{ name: '  ', tags: ['traffic'] }, 'a tag link must set a name'],

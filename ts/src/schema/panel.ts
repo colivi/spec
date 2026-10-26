@@ -31,50 +31,56 @@ export const querySpecSchema: z.ZodType<QueryDefinition, QueryDefinition> = z.ob
   }),
 });
 
-export const linkSchema: z.ZodType<Link, Link> = z
-  .object({
-    name: z.string().optional(),
-    url: z.string().optional(),
-    tooltip: z.string().optional(),
-    renderVariables: z.boolean().optional(),
-    targetBlank: z.boolean().optional(),
-    tags: z.array(z.string()).optional(),
-    keepTime: z.boolean().optional(),
-    includeVariables: z.boolean().optional(),
-  })
+const linkInputSchema = z.object({
+  name: z.string().optional(),
+  url: z.string().optional(),
+  tooltip: z.string().optional(),
+  renderVariables: z.boolean().optional(),
+  targetBlank: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  keepTime: z.boolean().optional(),
+  includeVariables: z.boolean().optional(),
+});
+
+export const linkSchema: z.ZodType<Link, z.input<typeof linkInputSchema>> = linkInputSchema
   .superRefine((link, ctx) => {
     const url = link.url?.trim() ?? '';
     const name = link.name?.trim() ?? '';
     const tags = (link.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
     const rawTagCount = link.tags?.length ?? 0;
-    let valid = true;
-    const reject = (message: string): void => {
-      valid = false;
-      ctx.addIssue({ code: 'custom', message });
-    };
     if (rawTagCount > 0 && tags.length !== rawTagCount) {
-      reject('link tag must not be empty');
+      ctx.addIssue({ code: 'custom', message: 'link tag must not be empty' });
     }
-    if (url.length > 0 === tags.length > 0) {
-      reject(
-        url.length > 0 ? 'link must set either a url or tags, not both' : 'link must set a url or at least one tag',
-      );
+    if (url.length > 0 && tags.length > 0) {
+      ctx.addIssue({ code: 'custom', message: 'link must set either a url or tags, not both' });
     }
     if (tags.length > 0 && name.length === 0) {
-      reject('a tag link must set a name');
+      ctx.addIssue({ code: 'custom', message: 'a tag link must set a name' });
     }
-    if (!valid) {
-      return;
+  })
+  .transform((link): Link => {
+    const url = link.url?.trim() ?? '';
+    const name = link.name?.trim() || undefined;
+    const tags = (link.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+    const shared = {
+      tooltip: link.tooltip,
+      keepTime: link.keepTime,
+      includeVariables: link.includeVariables,
+    };
+    if (tags.length > 0) {
+      return { ...shared, name: name ?? '', tags };
     }
-    if (name) link.name = name;
-    else delete link.name;
-    if (url) link.url = url;
-    else delete link.url;
-    if (tags.length > 0) link.tags = tags;
-    else delete link.tags;
+    return {
+      ...shared,
+      name,
+      url,
+      renderVariables: link.renderVariables,
+      targetBlank: link.targetBlank,
+    };
   });
 
-export const panelSpecSchema: z.ZodType<PanelSpec, PanelSpec> = z.object({
+// Input stays the loose JSON object. Output is the URLLink | TagLink union.
+export const panelSpecSchema: z.ZodType<PanelSpec> = z.object({
   display: panelDisplaySpec.optional(),
   plugin: pluginSchema,
   queries: z.array(querySpecSchema).optional(),
@@ -82,7 +88,7 @@ export const panelSpecSchema: z.ZodType<PanelSpec, PanelSpec> = z.object({
   annotations: z.array(annotationSpecSchema).optional(),
 });
 
-export function buildPanelSpecSchema(customPluginSchema: PluginSchema): z.ZodType<PanelSpec, PanelSpec> {
+export function buildPanelSpecSchema(customPluginSchema: PluginSchema): z.ZodType<PanelSpec> {
   return z.object({
     display: panelDisplaySpec.optional(),
     plugin: customPluginSchema,
@@ -92,14 +98,12 @@ export function buildPanelSpecSchema(customPluginSchema: PluginSchema): z.ZodTyp
   });
 }
 
-export const panelDefinitionSchema: z.ZodType<PanelDefinition, PanelDefinition> = z.object({
+export const panelDefinitionSchema: z.ZodType<PanelDefinition> = z.object({
   kind: z.literal('Panel'),
   spec: panelSpecSchema,
 });
 
-export function buildPanelDefinitionSchema(
-  customPluginSchema: PluginSchema,
-): z.ZodType<PanelDefinition, PanelDefinition> {
+export function buildPanelDefinitionSchema(customPluginSchema: PluginSchema): z.ZodType<PanelDefinition> {
   return z.object({
     kind: z.literal('Panel'),
     spec: buildPanelSpecSchema(customPluginSchema),

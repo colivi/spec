@@ -11,14 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export interface Link {
-  name?: string;
-  url?: string;
+interface LinkBase {
   tooltip?: string;
-  renderVariables?: boolean;
-  targetBlank?: boolean;
-  /** Same-project menu. Mutually exclusive with url. */
-  tags?: string[];
+  /** Copy the current time range. Applies to a URL and to a tag menu. */
   keepTime?: boolean;
+  /** Copy variables. A URL receives every current variable. A tag menu receives those the destination declares. */
   includeVariables?: boolean;
 }
+
+/** url is present, possibly empty. tags is absent. An empty URL is a placeholder stored before tag links. */
+export interface URLLink extends LinkBase {
+  name?: string;
+  url: string;
+  /** Interpolate $var inside the URL. Tag menus do not use this. */
+  renderVariables?: boolean;
+  targetBlank?: boolean;
+  tags?: never;
+}
+
+/** Same-project menu of dashboards that carry every tag. url is absent. */
+export interface TagLink extends LinkBase {
+  name: string;
+  tags: string[];
+  url?: never;
+}
+
+export type Link = URLLink | TagLink;
